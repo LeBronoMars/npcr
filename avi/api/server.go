@@ -3,11 +3,10 @@ package main
 import (
 	"os"
 	"fmt"
-	"io/ioutil"
 
 	"gopkg.in/mgo.v2"
 	"github.com/gin-gonic/gin"
-	"github.com/smallfish/ftp"
+	"github.com/jlaffaye/ftp"
 	h "npcr/avi/api/handlers"
 )
 
@@ -44,20 +43,26 @@ func InitDB() *mgo.Session {
 }
 
 func openFTP() {
-    ftp := new(ftp.FTP)                                                         
-    // debug default false
-    ftp.Debug = true
-    ftp.Connect("103.227.176.5", 21)         
-
-	ftp.Login("admin@avinnovz.com","avinnovz@123")
-
-    // read file
-    _, err := ioutil.ReadFile("/tbox_tags.csv")
-    if err == nil {
-    	fmt.Println("read file successful")
+	c, err := ftp.Dial("103.227.176.5:21")
+	if err == nil {
+		err := c.Login("admin@avinnovz.com","avinnovz@123")
+		if err == nil {
+			f, err := c.Retr("/tbox_tags.csv")
+			if err == nil {
+				err := c.Stor("/tbox_tags.csv",f)
+				if err == nil {
+					fmt.Println("file stored")
+				} else {
+					panic(fmt.Sprintf("failed to store file ---> %s",err))
+				}
+			} else {
+				panic(fmt.Sprintf("failed to read file %s",err))
+			}
+		} else {
+			panic(fmt.Sprintf("failed to login %s",err))
+		}
 	} else {
-		panic(fmt.Sprintf("failed to read file %s", err))
+		panic(fmt.Sprintf("failed to connect %s",err))
 	}
 
-    ftp.Quit() 
 }
