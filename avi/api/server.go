@@ -23,10 +23,15 @@ func main() {
 func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
 	public := r.Group("/api/v1")
 
+	//manage users
 	userHandler := h.NewUserHandler(db)
 	public.GET("/users", userHandler.Index)
 	public.POST("/users", userHandler.Create)
 	
+	//manage stations
+	stationHandler := h.NewStationHandler(db)
+	public.GET("/stations", stationHandler.Index)
+	public.POST("/stations", stationHandler.Create)
 
 	var port = os.Getenv("PORT")
 	if port == "" {
