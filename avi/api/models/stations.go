@@ -17,4 +17,5 @@ type Station struct {
 
 type Parameter struct {
 	Name string
+	Measurement string
 }

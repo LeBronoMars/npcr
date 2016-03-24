@@ -31,7 +31,9 @@ func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
 	//manage stations
 	stationHandler := h.NewStationHandler(db)
 	public.GET("/stations", stationHandler.Index)
+	public.GET("/stations/seed", stationHandler.Seed)
 	public.POST("/stations", stationHandler.Create)
+
 
 	var port = os.Getenv("PORT")
 	if port == "" {
