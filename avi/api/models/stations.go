@@ -10,6 +10,8 @@ type Station struct {
 	StationType string `form:"station_type" binding:"required"`
 	Location string `form:"location" binding:"required"`
 	Status string `form:"status" binding:"required"`
+	Email string `form:"email" binding:"required"`
+	ContactNo string `form:"contact_no" binding:"required"`
 	Parameters []Parameter `form:"parameters" binding:"required"`
 	CreatedAt time.Time  
 	UpdatedAt time.Time 

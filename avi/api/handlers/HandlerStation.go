@@ -12,15 +12,17 @@ import (
 	m "npcr/avi/api/models"
 	"gopkg.in/mgo.v2"		
 	"github.com/satori/go.uuid"
+	"github.com/pusher/pusher-http-go"
 )
 
 type StationHandler struct {
 	sess *mgo.Session
+	pusher *pusher.Client
 }
 
 // NewAppoointment factory for AppointmentsController
-func NewStationHandler(sess *mgo.Session) *StationHandler {
-	return &StationHandler{sess}
+func NewStationHandler(sess *mgo.Session, pusher *pusher.Client) *StationHandler {
+	return &StationHandler{sess,pusher}
 }
 
 //fetch list of stations
@@ -67,6 +69,31 @@ func (handler StationHandler) Create(c *gin.Context) {
 	respond(http.StatusCreated,"Station successfully created",c,false)
 }
 
+//Update station
+func (handler StationHandler) Update(c *gin.Context) {
+	station := m.Station{}
+	c.Bind(&station)	
+
+	jsonParameters := []byte(string(c.PostForm("parameters")))
+	params := []m.Parameter{}
+	json.Unmarshal(jsonParameters, &params)
+	
+	collection := handler.sess.DB("npcrdb").C("stations") 
+	station.ID = fmt.Sprintf("%s", uuid.NewV4())
+	station.CreatedAt = time.Now().UTC()
+	station.UpdatedAt = time.Now().UTC()
+	station.Parameters = params
+	station.Status = "active"
+	collection.Insert(&station)
+	respond(http.StatusCreated,"Station successfully created",c,false)
+}
+
+func (handler StationHandler) Notification(c *gin.Context) {
+	data := map[string]string{"message": c.PostForm("message")}
+  	handler.pusher.Trigger("test_channel", "my_event", data)
+	respond(http.StatusCreated,"Push notification successfully sent",c,false)
+}
+
 //seed stations data
 func (handler StationHandler) Seed(c *gin.Context) {	
 	collection := handler.sess.DB("npcrdb").C("stations") 
@@ -84,6 +111,8 @@ func (handler StationHandler) Seed(c *gin.Context) {
 		station.StationType = "Power Plant"
 		station.CreatedAt = time.Now().UTC()
 		station.UpdatedAt = time.Now().UTC()
+		station.Email = "sample_email@gmail.com"
+		station.ContactNo = "09151234567"
 		station.Parameters = params
 		station.Status = "active"
 

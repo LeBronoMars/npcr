@@ -53,7 +53,7 @@ func (handler UserHandler) Index(c *gin.Context) {
 // Create an account
 func (handler UserHandler) Create(c *gin.Context) {
 	user := m.User{}
-	c.BindJSON(&user)
+	c.Bind(&user)
 	collection := handler.sess.DB("npcrdb").C("users") 
 	result := m.User{}
 	err := collection.Find(bson.M{"email": user.Email}).One(&result)

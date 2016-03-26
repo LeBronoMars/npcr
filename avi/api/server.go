@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	//"github.com/jlaffaye/ftp"
 	h "npcr/avi/api/handlers"
+	"github.com/pusher/pusher-http-go"
 )
 
 
@@ -21,6 +22,7 @@ func main() {
 }
 
 func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
+	pusher := *InitPusher()
 	public := r.Group("/api/v1")
 
 	//manage users
@@ -29,11 +31,16 @@ func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
 	public.POST("/users", userHandler.Create)
 	
 	//manage stations
-	stationHandler := h.NewStationHandler(db)
+	stationHandler := h.NewStationHandler(db, &pusher)
 	public.GET("/stations", stationHandler.Index)
 	public.GET("/stations/seed", stationHandler.Seed)
 	public.POST("/stations", stationHandler.Create)
+	public.POST("/notifications", stationHandler.Notification)
 
+	//manage readings
+	readingHandler := h.NewReadingsHandler(db, &pusher)
+	public.GET("/readings/:id", readingHandler.Show)
+	public.POST("/readings", readingHandler.Create)
 
 	var port = os.Getenv("PORT")
 	if port == "" {
@@ -53,12 +60,22 @@ func InitDB() *mgo.Session {
 	return sess
 }
 
+func InitPusher() *pusher.Client {
+    client := pusher.Client{
+      AppId: "191090",
+      Key: "f607f300e00b18d5378e",
+      Secret: "64378131dc4a63bc020a",
+      Cluster: "ap1",
+    }
+    return &client
+}
+
 // func openFTP() {
 // 	//connect to ftp server
 // 	c, err := ftp.DialTimeout("ftp.avinnovz.com:21",5*time.Second)
 // 	if err == nil {
 // 		//login to ftp server
-// 		err = c.Login("admin@avinnovz.com", "avinnovz@123")
+// 		err = c.Login("admin@avinnovz.com", "avinnovz@1234")
 // 		if err == nil {
 // 			//retrieve csv file
 // 			r, err := c.Retr("/tbox_tags.csv")
