@@ -51,8 +51,8 @@ func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
 }
 
 func InitDB() *mgo.Session {
-	sess, err := mgo.Dial("mongodb://localhost/npcrdb")
-	//sess, err := mgo.Dial("mongodb://npc:Passw0rd@ds021689.mlab.com:21689/npcr")
+	//sess, err := mgo.Dial("mongodb://localhost/npcrdb")
+	sess, err := mgo.Dial("mongodb://npc:Passw0rd@ds021689.mlab.com:21689/npcr")
 	if err != nil {
 		panic(fmt.Sprintf("Error connecting to the database:  %s", err))
 	}

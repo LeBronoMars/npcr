@@ -12,7 +12,8 @@ import (
 	m "npcr/avi/api/models"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"		
-	"github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"    
+	  
 	"github.com/pusher/pusher-http-go"
 	"github.com/robfig/cron"
 )
@@ -26,7 +27,7 @@ func NewReadingsHandler(sess *mgo.Session, pusher *pusher.Client) *ReadingsHandl
 	cronJob(sess,pusher)
 	return &ReadingsHandler{sess,pusher}
 }
-
+	
 func cronJob(sess *mgo.Session, pusher *pusher.Client) {
 	fmt.Println("must run CRON JOB")
 
@@ -35,8 +36,9 @@ func cronJob(sess *mgo.Session, pusher *pusher.Client) {
 	collection.Find(nil).All(&stations)
 
 	c := cron.New()
-	c.AddFunc("@every 0h01m", func() { 
+	c.AddFunc("@every 1h00m", func() { 
 		fmt.Println("Every one minute")
+		readingsCollections := sess.DB("npcrdb").C("readings") 
 		for _,st := range stations {
 			reading := m.Reading{}
 			params := []m.Params{
@@ -48,7 +50,7 @@ func cronJob(sess *mgo.Session, pusher *pusher.Client) {
 			reading.CreatedAt = time.Now().UTC()
 			reading.UpdatedAt = time.Now().UTC()
 			reading.Params = params
-			collection.Insert(&reading)
+			readingsCollections.Insert(&reading)
 		}
 	    data := map[string]string{"message": "reading created"}
     	pusher.Trigger("test_channel", "my_event", data)
@@ -75,11 +77,13 @@ func (handler ReadingsHandler) Show(c *gin.Context) {
 		i,_ := strconv.Atoi(c.Query("max"))
 		max = i;
 	} 
-	fmt.Println("staion id ---> " ,id)
+
 	fmt.Printf("offset ---> %d max ---> %d\n", start, max)
+	fmt.Println("from date ---> "+"ISODate(\"" +c.Query("from_date") + "\")")
 	readings := []m.Reading{}
 	collection := handler.sess.DB("npcrdb").C("readings") 
-	query := collection.Find(bson.M{"stationid" : id}).Sort("-createdat")
+	query := collection.Find(bson.M{"stationid" : id,
+									"createdat" : bson.M{"$gte" :c.Query("from_date")}}).Sort("-createdat")
 	query.All(&readings)
 	c.JSON(http.StatusOK, readings)
 }
