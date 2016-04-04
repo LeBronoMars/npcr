@@ -45,7 +45,7 @@ func (handler UserHandler) Index(c *gin.Context) {
 
 	fmt.Printf("offset ---> %d max ---> %d\n", start, max)
 	users := []m.User{}
-	collection := handler.sess.DB("npcrdb").C("users") 
+	collection := handler.sess.DB("npcr").C("users") 
 	collection.Find(nil).Select(bson.M{"password": 0}).All(&users)
 	c.JSON(http.StatusOK, users)
 }
@@ -54,7 +54,7 @@ func (handler UserHandler) Index(c *gin.Context) {
 func (handler UserHandler) Create(c *gin.Context) {
 	user := m.User{}
 	c.Bind(&user)
-	collection := handler.sess.DB("npcrdb").C("users") 
+	collection := handler.sess.DB("npcr").C("users") 
 	result := m.User{}
 	err := collection.Find(bson.M{"email": user.Email}).One(&result)
 	//check if email is not existing

@@ -32,13 +32,13 @@ func cronJob(sess *mgo.Session, pusher *pusher.Client) {
 	fmt.Println("must run CRON JOB")
 
 	stations := []m.Station{}
-	collection := sess.DB("npcrdb").C("stations") 
+	collection := sess.DB("npcr").C("stations") 
 	collection.Find(nil).All(&stations)
 
 	c := cron.New()
 	c.AddFunc("@every 1h00m", func() { 
 		fmt.Println("Every one minute")
-		readingsCollections := sess.DB("npcrdb").C("readings") 
+		readingsCollections := sess.DB("npcr").C("readings") 
 		for _,st := range stations {
 			reading := m.Reading{}
 			params := []m.Params{
@@ -81,7 +81,7 @@ func (handler ReadingsHandler) Show(c *gin.Context) {
 	fmt.Printf("offset ---> %d max ---> %d\n", start, max)
 	fmt.Println("from date ---> "+"ISODate(\"" +c.Query("from_date") + "\")")
 	readings := []m.Reading{}
-	collection := handler.sess.DB("npcrdb").C("readings") 
+	collection := handler.sess.DB("npcr").C("readings") 
 	query := collection.Find(bson.M{"stationid" : id,
 									"createdat" : bson.M{"$gte" :c.Query("from_date")}}).Sort("-createdat")
 	query.All(&readings)
@@ -97,7 +97,7 @@ func (handler ReadingsHandler) Create(c *gin.Context) {
 	params := []m.Params{}
 	json.Unmarshal(jsonParameters, &params)
 	
-	collection := handler.sess.DB("npcrdb").C("readings") 
+	collection := handler.sess.DB("npcr").C("readings") 
 	reading.ID = fmt.Sprintf("%s", uuid.NewV4())
 	reading.CreatedAt = time.Now().UTC()
 	reading.UpdatedAt = time.Now().UTC()

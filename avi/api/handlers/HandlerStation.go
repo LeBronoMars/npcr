@@ -45,7 +45,7 @@ func (handler StationHandler) Index(c *gin.Context) {
 
 	fmt.Printf("offset ---> %d max ---> %d\n", start, max)
 	stations := []m.Station{}
-	collection := handler.sess.DB("npcrdb").C("stations") 
+	collection := handler.sess.DB("npcr").C("stations") 
 	collection.Find(nil).All(&stations)
 	c.JSON(http.StatusOK, stations)
 }
@@ -59,7 +59,7 @@ func (handler StationHandler) Create(c *gin.Context) {
 	params := []m.Parameter{}
 	json.Unmarshal(jsonParameters, &params)
 	
-	collection := handler.sess.DB("npcrdb").C("stations") 
+	collection := handler.sess.DB("npcr").C("stations") 
 	station.ID = fmt.Sprintf("%s", uuid.NewV4())
 	station.CreatedAt = time.Now().UTC()
 	station.UpdatedAt = time.Now().UTC()
@@ -78,7 +78,7 @@ func (handler StationHandler) Update(c *gin.Context) {
 	params := []m.Parameter{}
 	json.Unmarshal(jsonParameters, &params)
 	
-	collection := handler.sess.DB("npcrdb").C("stations") 
+	collection := handler.sess.DB("npcr").C("stations") 
 	station.ID = fmt.Sprintf("%s", uuid.NewV4())
 	station.CreatedAt = time.Now().UTC()
 	station.UpdatedAt = time.Now().UTC()
@@ -96,7 +96,7 @@ func (handler StationHandler) Notification(c *gin.Context) {
 
 //seed stations data
 func (handler StationHandler) Seed(c *gin.Context) {	
-	collection := handler.sess.DB("npcrdb").C("stations") 
+	collection := handler.sess.DB("npcr").C("stations") 
 
 	stations := []m.Station{}
 	collection.Find(nil).All(&stations)
