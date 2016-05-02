@@ -3,44 +3,32 @@ package main
 import (
 	"os"
 	"fmt"
-	//"io/ioutil"
-	//"time"
+	"log"
 
-	"gopkg.in/mgo.v2"
-	"github.com/gin-gonic/gin"
-	//"github.com/jlaffaye/ftp"
 	h "npcr/avi/api/handlers"
+	m "npcr/avi/api/models"
+	"github.com/gin-gonic/gin"
+	"npcr/avi/api/config"
 	"github.com/pusher/pusher-http-go"
+	"github.com/jinzhu/gorm"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-
 func main() {
-	//openFTP()
 	db := *InitDB()
 	router := gin.Default()
 	LoadAPIRoutes(router, &db)
 }
 
-func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
+func LoadAPIRoutes(r *gin.Engine, db *gorm.DB) {
 	pusher := *InitPusher()
 	public := r.Group("/api/v1")
-
-	//manage users
-	userHandler := h.NewUserHandler(db)
-	public.GET("/users", userHandler.Index)
-	public.POST("/users", userHandler.Create)
 	
 	//manage stations
 	stationHandler := h.NewStationHandler(db, &pusher)
 	public.GET("/stations", stationHandler.Index)
-	public.GET("/stations/seed", stationHandler.Seed)
 	public.POST("/stations", stationHandler.Create)
-	public.POST("/notifications", stationHandler.Notification)
-
-	//manage readings
-	readingHandler := h.NewReadingsHandler(db, &pusher)
-	public.GET("/readings/:id", readingHandler.Show)
-	public.POST("/readings", readingHandler.Create)
+	public.PUT("/stations/:station_id", stationHandler.Update)
 
 	var port = os.Getenv("PORT")
 	if port == "" {
@@ -50,14 +38,22 @@ func LoadAPIRoutes(r *gin.Engine, db *mgo.Session) {
 	r.Run(fmt.Sprintf(":%s", port))
 }
 
-func InitDB() *mgo.Session {
-	//sess, err := mgo.Dial("mongodb://localhost/npcrdb")
-	sess, err := mgo.Dial("mongodb://npc:Passw0rd@ds021689.mlab.com:21689/npcr")
+func InitDB() *gorm.DB {
+	dbURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local",
+		config.GetString("DB_USER"), config.GetString("DB_PASS"),
+		config.GetString("DB_HOST"), config.GetString("DB_PORT"),
+		config.GetString("DB_NAME"))
+	log.Printf("\nDatabase URL: %s\n", dbURL)
+
+	_db, err := gorm.Open("mysql", dbURL)
 	if err != nil {
 		panic(fmt.Sprintf("Error connecting to the database:  %s", err))
 	}
-	sess.SetSafe(&mgo.Safe{})
-	return sess
+	_db.DB()
+	_db.LogMode(true)
+	_db.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(&m.Station{},&m.Equipment{})
+	log.Printf("must create tables")
+	return &_db
 }
 
 func InitPusher() *pusher.Client {
@@ -69,33 +65,3 @@ func InitPusher() *pusher.Client {
     }
     return &client
 }
-
-// func openFTP() {
-// 	//connect to ftp server
-// 	c, err := ftp.DialTimeout("ftp.avinnovz.com:21",5*time.Second)
-// 	if err == nil {
-// 		//login to ftp server
-// 		err = c.Login("admin@avinnovz.com", "avinnovz@1234")
-// 		if err == nil {
-// 			//retrieve csv file
-// 			r, err := c.Retr("/tbox_tags.csv")
-// 			if err == nil {
-// 				//read csv file
-// 				buf, err := ioutil.ReadAll(r)
-// 				if err == nil {
-// 					fmt.Println("reading : ", string(buf))
-// 				} else {
-// 					panic(fmt.Sprintf("failed to read file ---> %s",err))
-// 				}
-// 				r.Close()
-// 			} else {
-// 				panic(fmt.Sprintf("failed to retrieve file ---> %s",err))
-// 			}
-// 			panic(fmt.Sprintf("failed to store file ---> %s",err))
-// 		} else {
-// 			panic(fmt.Sprintf("failed to login ---> %s",err))
-// 		}
-// 	} else {
-// 		panic(fmt.Sprintf("failed to connect in ftp server ---> %s",err))
-// 	}
-// }

@@ -1,156 +1,113 @@
 package handlers
 
-
 import (
 	"net/http"
-	"strconv"
-	"fmt"
 	"time"
-	"encoding/json"
-
+	"fmt"
+	
 	"github.com/gin-gonic/gin"
-	m "npcr/avi/api/models"
-	"gopkg.in/mgo.v2"		
-	"github.com/satori/go.uuid"
+	"github.com/jinzhu/gorm"
+	"github.com/jlaffaye/ftp"
 	"github.com/pusher/pusher-http-go"
+	"github.com/robfig/cron"
+	m "npcr/avi/api/models"
 )
 
 type StationHandler struct {
-	sess *mgo.Session
+	db *gorm.DB
 	pusher *pusher.Client
 }
 
-// NewAppoointment factory for AppointmentsController
-func NewStationHandler(sess *mgo.Session, pusher *pusher.Client) *StationHandler {
-	return &StationHandler{sess,pusher}
+func NewStationHandler(db *gorm.DB,pusher *pusher.Client) *StationHandler {
+	cronJob(db,pusher)
+	return &StationHandler{db,pusher}
 }
 
-//fetch list of stations
+// get all stations
 func (handler StationHandler) Index(c *gin.Context) {
-	start := -1
-	max := 10
-
-	//check if start exists in url parameters
-	if c.Query("start") != ""  {
-		i,_ := strconv.Atoi(c.Query("start"))
-		start = i;
-	} else {
-		fmt.Println("cant read start query param")
-	}
-
-	if c.Query("max") != ""  {
-		i,_ := strconv.Atoi(c.Query("max"))
-		max = i;
-	} 
-
-	fmt.Printf("offset ---> %d max ---> %d\n", start, max)
-	stations := []m.Station{}
-	collection := handler.sess.DB("npcr").C("stations") 
-	collection.Find(nil).All(&stations)
-	c.JSON(http.StatusOK, stations)
+	stations := []m.Station{}	
+	handler.db.Find(&stations)
+	c.JSON(http.StatusOK, &stations)
 }
 
-// Create station
+// create new station
 func (handler StationHandler) Create(c *gin.Context) {
-	station := m.Station{}
-	c.Bind(&station)	
-
-	jsonParameters := []byte(string(c.PostForm("parameters")))
-	params := []m.Parameter{}
-	json.Unmarshal(jsonParameters, &params)
-	
-	collection := handler.sess.DB("npcr").C("stations") 
-	station.ID = fmt.Sprintf("%s", uuid.NewV4())
-	station.CreatedAt = time.Now().UTC()
-	station.UpdatedAt = time.Now().UTC()
-	station.Parameters = params
-	station.Status = "active"
-	collection.Insert(&station)
-	respond(http.StatusCreated,"Station successfully created",c,false)
+	station := new(m.Station)
+	c.Bind(station)
+	handler.db.Create(station)
+	c.JSON(http.StatusCreated,station)
 }
 
-//Update station
+// update a station
 func (handler StationHandler) Update(c *gin.Context) {
+	station_id := c.Param("station_id")
 	station := m.Station{}
-	c.Bind(&station)	
-
-	jsonParameters := []byte(string(c.PostForm("parameters")))
-	params := []m.Parameter{}
-	json.Unmarshal(jsonParameters, &params)
-	
-	collection := handler.sess.DB("npcr").C("stations") 
-	station.ID = fmt.Sprintf("%s", uuid.NewV4())
-	station.CreatedAt = time.Now().UTC()
-	station.UpdatedAt = time.Now().UTC()
-	station.Parameters = params
-	station.Status = "active"
-	collection.Insert(&station)
-	respond(http.StatusCreated,"Station successfully created",c,false)
-}
-
-func (handler StationHandler) Notification(c *gin.Context) {
-	data := map[string]string{"message": c.PostForm("message")}
-  	handler.pusher.Trigger("test_channel", "my_event", data)
-	respond(http.StatusCreated,"Push notification successfully sent",c,false)
-}
-
-//seed stations data
-func (handler StationHandler) Seed(c *gin.Context) {	
-	collection := handler.sess.DB("npcr").C("stations") 
-
-	stations := []m.Station{}
-	collection.Find(nil).All(&stations)
-
-	if len(stations) < 1 {
-		station := m.Station{}
-
-		//Bataan Power Plant
-		jsonParameters := []byte("[{\"Name\": \"Fuel\",\"Measurement\":\"Liters\"},{\"Name\":\"Electricity\",\"Measurement\": \"Kilowatts\"}]")
-		params := []m.Parameter{}
-		json.Unmarshal(jsonParameters, &params)
-		station.StationType = "Power Plant"
-		station.CreatedAt = time.Now().UTC()
-		station.UpdatedAt = time.Now().UTC()
-		station.Email = "sample_email@gmail.com"
-		station.ContactNo = "09151234567"
-		station.Parameters = params
-		station.Status = "active"
-
-		station.ID = fmt.Sprintf("%s", uuid.NewV4())
-		station.StationName = "Bataan Thermal Power Plant"
-		station.Location = "Morong, Bataan"
-		station.Latitude = 14.629726
-		station.Longitude = 120.313645
-
-		collection.Insert(&station)
-
-		//Malaya Thermal Power Plant
-		station.ID = fmt.Sprintf("%s", uuid.NewV4())
-		station.StationName = "Malaya Thermal Power Plant"
-		station.Location = "Naga City, Cebu"
-		station.Latitude = 10.209105
-		station.Longitude = 123.751571
-		collection.Insert(&station)
-
-		//Sual Coal Fired Thermal Power Plant
-		station.ID = fmt.Sprintf("%s", uuid.NewV4())
-		station.StationName = "Sual Coal Fired Thermal Power Plant"
-		station.Location = "Sual, Pangasinan"
-		station.Latitude = 16.125227
-		station.Longitude = 120.100556
-		collection.Insert(&station)
-
-		//Western Mindanao Power Corporation
-		station.ID = fmt.Sprintf("%s", uuid.NewV4())
-		station.StationName = "Western Mindanao Power Corporation"
-		station.Location = "Brgy. Sangali, Zamboanga City, Zambanga del Sur"
-		station.Latitude = 7.083144
-		station.Longitude = 122.215849
-		collection.Insert(&station)
-
-		respond(http.StatusOK,"Station record successfully seeded",c,false)		
+	handler.db.Where("id = ?",station_id).First(&station)
+	if station.StationName != "" {
+		updates := new(m.Station)
+		c.Bind(updates)
+		station.StationName = updates.StationName
+		station.Status = updates.Status
+		station.Latitude = updates.Latitude
+		station.Longitude = updates.Longitude
+		handler.db.Save(&station)
+		c.JSON(http.StatusOK,station)
 	} else {
-		respond(http.StatusOK,"Station already has seeded records",c,false)	
+		c.JSON(http.StatusBadRequest,"Unable to find station!")
 	}
-
 }
+
+func cronJob(sess *gorm.DB, pusher *pusher.Client) {
+	fmt.Println("must run CRON JOB")
+	c := cron.New()
+	c.AddFunc("@every 12h0m", func() { 
+		fmt.Println("must open FTP")
+    	//pusher.Trigger("test_channel", "my_event", "hello world")
+	 })
+	c.Start()
+}
+
+func readStations() {
+	//connect to ftp server
+	c, err := ftp.DialTimeout("ftp.avinnovz.com:21",5*time.Second)
+	if err == nil {
+		//login to ftp server
+		err = c.Login("admin@avinnovz.com", "avinnovz@1234")
+		if err == nil {
+			//get directories listing
+			directories , err := c.List("/TBoxStations")
+			if err == nil {
+				for _,d := range directories {
+					if d.Type == 1 && d.Name != "." && d.Name != ".." {
+						fmt.Println("Directory ----> " + d.Name);
+					}
+				}
+			} else {
+				fmt.Println("failed to retrieved listing");
+			}
+
+			//retrieve csv file
+			// r, err := c.Retr("/TBoxStations")
+			// if err == nil {
+			// 	//read csv file
+			// 	buf, err := ioutil.ReadAll(r)
+			// 	if err == nil {
+			// 		fmt.Println("reading : ", string(buf))
+			// 	} else {
+			// 		panic(fmt.Sprintf("failed to read file ---> %s",err))
+			// 	}
+			// 	r.Close()
+			// } else {
+			// 	panic(fmt.Sprintf("failed to retrieve file ---> %s",err))
+			// }
+			// panic(fmt.Sprintf("failed to store file ---> %s",err))
+		} else {
+			panic(fmt.Sprintf("failed to login ---> %s",err))
+		}
+	} else {
+		panic(fmt.Sprintf("failed to connect in ftp server ---> %s",err))
+	}
+}
+
+
+
