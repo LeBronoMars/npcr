@@ -36,6 +36,11 @@ func LoadAPIRoutes(r *gin.Engine, db *gorm.DB) {
 	public.POST("/stations", stationHandler.Create)
 	public.PUT("/stations/:station_id", stationHandler.Update)
 
+	//manage readings
+	readingsHandler := h.NewReadingsHandler(db)
+	public.GET("/readings", readingsHandler.Index)
+	public.GET("/readings/:station_id", readingsHandler.ReadingsByStations)
+
 	var port = os.Getenv("PORT")
 	if port == "" {
 		port = "9000"
@@ -137,7 +142,7 @@ func readCSV(c *ftp.ServerConn, path string, db *gorm.DB) {
 							//insert reading
 							if query.RowsAffected == 0 {
 								now := time.Now().UTC()
-								result := db.Exec("INSERT INTO readings values (null,?,?,null,?,?,?,?,?)",now,now,data[0],data[1],data[2],equipment.ID,station.ID)
+								result := db.Exec("INSERT INTO readings values (null,?,?,null,?,?,?,?,?,?,?)",now,now,data[0],data[1],strings.TrimSpace(data[2]),equipment.ID,equipment.EquipmentName,station.ID,station.StationName)
 								if result.RowsAffected == 1 {
 									fmt.Printf("\nNEW READING CREATED!")
 								} else {
@@ -163,7 +168,7 @@ func readCSV(c *ftp.ServerConn, path string, db *gorm.DB) {
 
 func cronJob(db *gorm.DB) {
 	c := cron.New()
-	c.AddFunc("@every 00h01m", func() { 
+	c.AddFunc("@every 00h30m", func() { 
 		readStations("/TBoxStations", db)
     	//pusher.Trigger("test_channel", "my_event", "hello world")
 	 })
