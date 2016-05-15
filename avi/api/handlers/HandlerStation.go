@@ -9,7 +9,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/jlaffaye/ftp"
 	"github.com/pusher/pusher-http-go"
-	"github.com/robfig/cron"
 	m "npcr/avi/api/models"
 )
 
@@ -19,23 +18,27 @@ type StationHandler struct {
 }
 
 func NewStationHandler(db *gorm.DB,pusher *pusher.Client) *StationHandler {
-	cronJob(db,pusher)
 	return &StationHandler{db,pusher}
 }
 
 // get all stations
 func (handler StationHandler) Index(c *gin.Context) {
 	stations := []m.Station{}	
-	handler.db.Find(&stations)
+	handler.db.Where("status = ?","active").Find(&stations)
 	c.JSON(http.StatusOK, &stations)
 }
 
 // create new station
 func (handler StationHandler) Create(c *gin.Context) {
-	station := new(m.Station)
-	c.Bind(station)
-	handler.db.Create(station)
-	c.JSON(http.StatusCreated,station)
+	var newStation m.Station
+	c.Bind(&newStation)
+	result := handler.db.Create(&newStation)
+	if result.RowsAffected == 1 {
+		c.JSON(http.StatusCreated,newStation)	
+	} else {
+		respond(http.StatusBadRequest,result.Error.Error(),c,true)
+	}
+	
 }
 
 // update a station
@@ -57,34 +60,17 @@ func (handler StationHandler) Update(c *gin.Context) {
 	}
 }
 
-func cronJob(sess *gorm.DB, pusher *pusher.Client) {
-	fmt.Println("must run CRON JOB")
-	c := cron.New()
-	c.AddFunc("@every 12h0m", func() { 
-		fmt.Println("must open FTP")
-    	//pusher.Trigger("test_channel", "my_event", "hello world")
-	 })
-	c.Start()
-}
 
-func readStations() {
+func readStations(path string) {
+	fmt.Println("PATH ----> " + path)
 	//connect to ftp server
 	c, err := ftp.DialTimeout("ftp.avinnovz.com:21",5*time.Second)
 	if err == nil {
 		//login to ftp server
-		err = c.Login("admin@avinnovz.com", "avinnovz@1234")
+		err := c.Login("admin@avinnovz.com", "avinnovz@1234")
 		if err == nil {
 			//get directories listing
-			directories , err := c.List("/TBoxStations")
-			if err == nil {
-				for _,d := range directories {
-					if d.Type == 1 && d.Name != "." && d.Name != ".." {
-						fmt.Println("Directory ----> " + d.Name);
-					}
-				}
-			} else {
-				fmt.Println("failed to retrieved listing");
-			}
+			readEntriesOfPath(c,path)
 
 			//retrieve csv file
 			// r, err := c.Retr("/TBoxStations")
@@ -106,6 +92,21 @@ func readStations() {
 		}
 	} else {
 		panic(fmt.Sprintf("failed to connect in ftp server ---> %s",err))
+	}
+}
+
+func readEntriesOfPath(c *ftp.ServerConn, path string) {
+	directories , err := c.List(path)
+	fmt.Println("PATH ---> " + path)
+	if err == nil {
+		for _,d := range directories {
+			if d.Type == 1 && d.Name != "." && d.Name != ".." {
+				fmt.Println("Directory ----> " + d.Name);
+				readEntriesOfPath(c,path+"/"+d.Name)
+			}
+		}
+	} else {
+		fmt.Println("failed to retrieved listing");
 	}
 }
 
