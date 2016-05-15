@@ -168,7 +168,8 @@ func readCSV(c *ftp.ServerConn, path string, db *gorm.DB) {
 
 func cronJob(db *gorm.DB) {
 	c := cron.New()
-	c.AddFunc("@every 00h30m", func() { 
+	c.AddFunc("@every 00h01m", func() {
+		fmt.Printf("\nmust run cron job") 
 		readStations("/TBoxStations", db)
     	//pusher.Trigger("test_channel", "my_event", "hello world")
 	 })
