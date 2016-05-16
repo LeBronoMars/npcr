@@ -65,7 +65,7 @@ func InitDB() *gorm.DB {
 	//_db.LogMode(true)
 	_db.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(&m.Station{},&m.Equipment{},&m.Reading{})
 	log.Printf("must create tables")
-	return &_db
+	return _db
 }
 
 func InitPusher() *pusher.Client {
@@ -169,7 +169,7 @@ func readCSV(c *ftp.ServerConn, path string, db *gorm.DB) {
 
 func cronJob(db *gorm.DB) {
 	c := cron.New()
-	c.AddFunc("@every 00h01m", func() {
+	c.AddFunc("@every 00h30m", func() {
 		fmt.Printf("\nmust run cron job") 
 		readStations("/TBoxStations", db)
     	//pusher.Trigger("test_channel", "my_event", "hello world")
