@@ -81,7 +81,8 @@ func InitPusher() *pusher.Client {
 func readStations(path string, db *gorm.DB) {
 	fmt.Println("PATH ----> " + path)
 	//connect to ftp server
-	c, err := ftp.DialTimeout("ftp.avinnovz.com:21",5*time.Second)
+	//c, err := ftp.DialTimeout("ftp.avinnovz.com:21",5*time.Second)
+	c, err := ftp.DialTimeout("103.227.176.5:21",5*time.Second)
 	if err == nil {
 		//login to ftp server
 		err := c.Login("admin@avinnovz.com", "avinnovz@1234")
