@@ -40,6 +40,7 @@ func LoadAPIRoutes(r *gin.Engine, db *gorm.DB) {
 	readingsHandler := h.NewReadingsHandler(db)
 	public.GET("/readings", readingsHandler.Index)
 	public.GET("/readings/:station_id", readingsHandler.ReadingsByStations)
+	public.GET("/equipment/:station_id", readingsHandler.GetEquipmentsInStation)
 
 	var port = os.Getenv("PORT")
 	if port == "" {

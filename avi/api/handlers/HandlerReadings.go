@@ -35,5 +35,13 @@ func (handler ReadingsHandler) ReadingsByStations(c *gin.Context) {
 	c.JSON(http.StatusOK, &readings)
 }
 
+//get all equipments in a station
+func (handler ReadingsHandler) GetEquipmentsInStation(c *gin.Context) {
+	station := c.Param("station_id")
+	equipments := []m.Equipment{}
+	handler.db.Where("station_id = ?",station).Find(&equipments)
+	c.JSON(http.StatusOK, &equipments)
+}
+
 
 
